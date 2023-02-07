@@ -79,12 +79,21 @@ echo "Calculation: Sector Offset to Data Area"
 let "DATAOFFSET = $ROOTDIROFFSET + $ROOTDIRSIZE"
 echo "$DATAOFFSET sectors"
 
+echo "Calculation: Size of Cluster"
+let "CLUSTERSIZE = $CLUSTERSECTORS * $SECTORSIZE"
+echo "$CLUSTERSIZE bytes"
+
 echo "FAT16: Extracting Data Area"
 dd if=fat16.dd of=data-area.dd bs=$SECTORSIZE skip=$DATAOFFSET status=none
 
 function loop_dir_entries() { # Directory Image, Directory Enties (Num)
     DIRIMG=$1
     DIRENTRIES=$2
+    if [ "$DIRENTRIES" == "0" ]; then # For convenience, calculate from DD image
+        IMGSIZE="$(wc -c <"$DIRIMG")"
+        let "DIRENTRIES = $IMGSIZE / 32"
+    fi
+    echo "Looping through directory image '$DIRIMG'..."
     # Loop through root directory entries
     for ((i = 0; i < DIRENTRIES; i++)); do # https://stackoverflow.com/a/171041
 
@@ -96,9 +105,9 @@ function loop_dir_entries() { # Directory Image, Directory Enties (Num)
         if [ "$FIRSTCHAR" == "00" ]; then # Unallocated
             :
         else
-            echo -e "\n-> Directory Entry $i"
+            echo -e "-> Directory Entry $i"
             if [ "$FIRSTCHAR" == "E5" ]; then # Deleted
-                echo -e "\t Deleted File"
+                echo -e "\tDeleted File"
             fi
 
             # 0x01: read only, 0x02: hidden, 0x04: system, 0x08: volume label, 0x10: directory, 0x20: archive, 0x0F: long file name
@@ -107,7 +116,7 @@ function loop_dir_entries() { # Directory Image, Directory Enties (Num)
 
             if [ "$FILEATTR" == "0F" ]; then # Long file name
                 # Sequence Number
-                SEQNUM=$(dd if=dir-entry.dd bs=1 skip=0 count=1 status=none)
+                SEQNUM=$(dd if=dir-entry.dd bs=1 skip=0 count=1 status=none | xxd -p -u)
                 # First 5 UCS-2 Characters | 0x1 = 1 -> 10 bytes
                 UCS1=$(dd if=dir-entry.dd bs=1 skip=1 count=10 status=none | tr -d "\000")
                 # Next 6 UCS-2 Characters | 0xE = 14 -> 12 bytes
@@ -131,47 +140,62 @@ function loop_dir_entries() { # Directory Image, Directory Enties (Num)
                 echo -e "\tFile Size: $FILESIZE"
                 echo -e "\tFirst Cluster: $FIRSTCLUSTER"
             fi
+            echo
         fi
     done
 }
 
-echo "Looping Through Root Directory..."
 loop_dir_entries "root-dir.dd" "$ROOTDIRENTRIES"
 
-FIRSTCLUSTER=3
-FILESIZE=104 # bytes
-FILENAME="test.txt"
+function extract_file() { # File Name, First Cluster, File Size
+    FILENAME=$1
+    FIRSTCLUSTER=$2
+    FILESIZE=$3
 
-# Find the allocated clusters for the file
-dd if=fat-table.dd bs=2 skip=$FIRSTCLUSTER count=1 status=none | xxd -p -u
+    CURRCLUSTER=$FIRSTCLUSTER
+    # https://stackoverflow.com/a/24421013
+    while true; do
+        NEXTCLUSTER=$(dd if=fat-table.dd bs=2 skip=$CURRCLUSTER count=1 status=none | xxd -p -u | le2be | hex2deci)
 
-echo "Calculation: Size of Cluster"
-let "CLUSTERSIZE = $CLUSTERSECTORS * $SECTORSIZE"
-echo "$CLUSTERSIZE bytes"
+        # 0x0000: Unallocated, 0xFFF7: Bad sector, 0xFFF8: EOF
+        if [ "$NEXTCLUSTER" == "0" ]; then
+            echo "Cluster unallocated"
+            break
+        fi
+        if [ "$NEXTCLUSTER" == "65527" ]; then
+            echo "Bad sector"
+            break
+        fi
 
-# Data area starts numbering from 2
-let "ACTUALCLUSTER = $FIRSTCLUSTER - 1"
-let "SKIPCLUSTERS = $ACTUALCLUSTER - 1"
+        # Data area starts numbering from 2
+        let "ACTUALCLUSTER = $CURRCLUSTER - 1"
+        let "SKIPCLUSTERS = $ACTUALCLUSTER - 1"
 
-# Extract the file clusters
-dd if=data-area.dd of=file.dd bs=$CLUSTERSIZE skip=$SKIPCLUSTERS count=1 status=none
+        # Append the file clusters into image
+        dd if=data-area.dd bs=$CLUSTERSIZE skip=$SKIPCLUSTERS count=1 status=none >>$FILENAME.dd
 
-# Extract the actual file content
-dd if=file.dd of=$FILENAME bs=1 count=$FILESIZE status=none
+        # 0xFFF8 (65528) >= End of File
+        if [ "$NEXTCLUSTER" -ge "65528" ]; then
+            if [ "$FILESIZE" == "0" ]; then
+                echo "Extracted directory image '$FILENAME.dd'"
+                break
+            fi
+            # Extract the actual file content
+            dd if=$FILENAME.dd of=$FILENAME bs=1 count=$FILESIZE status=none
+            echo "Extracted '$FILENAME'"
+            break
+        fi
+        CURRCLUSTER=$NEXTCLUSTER
+    done
+}
 
-# 4
-FIRSTCLUSTER=4
-dd if=fat-table.dd bs=2 skip=$FIRSTCLUSTER count=1 status=none | xxd -p -u
+extract_file "test.txt" "3" "104"
 
-# actual = 2
-dd if=data-area.dd of=dir.dd bs=$CLUSTERSIZE skip=2 count=1 status=none
+extract_file "folder" "4" "0" # Extracting a directory
 
-dd if=dir.dd bs=32 skip=0 count=1 status=none # .
-dd if=dir.dd bs=32 skip=1 count=1 status=none # ..
-dd if=dir.dd bs=32 skip=2 count=1 status=none # LFN
-dd if=dir.dd bs=32 skip=3 count=1 status=none # LFN
+loop_dir_entries "folder.dd" "0"
 
-# dd if=data-area.dd bs=$CLUSTERSIZE skip=4 count=10 status=none | strings
+extract_file "ASCII_code_chart.png" "5" "37769"
 
 # https://www.win.tue.nl/~aeb/linux/fs/fat/fat-1.html
 # https://people.cs.umass.edu/~liberato/courses/2018-spring-compsci365+590f/lecture-notes/11-fats-and-directory-entries/
