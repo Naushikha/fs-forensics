@@ -82,55 +82,61 @@ echo "$DATAOFFSET sectors"
 echo "FAT16: Extracting Data Area"
 dd if=fat16.dd of=data-area.dd bs=$SECTORSIZE skip=$DATAOFFSET status=none
 
-# Loop through root directory entries
-for ((i = 0; i < ROOTDIRENTRIES; i++)); do # https://stackoverflow.com/a/171041
+function loop_dir_entries() { # Directory Image, Directory Enties (Num)
+    DIRIMG=$1
+    DIRENTRIES=$2
+    # Loop through root directory entries
+    for ((i = 0; i < DIRENTRIES; i++)); do # https://stackoverflow.com/a/171041
 
-    dd if=root-dir.dd of=root-dir-entry.dd bs=32 skip=$i count=1 status=none
+        dd if=$DIRIMG of=dir-entry.dd bs=32 skip=$i count=1 status=none
 
-    FIRSTCHAR=$(dd if=root-dir-entry.dd bs=1 count=1 status=none | xxd -p -u)
-    # 0x00: Unallocated, 0xE5: Deleted, Anything Else: First Character of File Name
+        FIRSTCHAR=$(dd if=dir-entry.dd bs=1 count=1 status=none | xxd -p -u)
+        # 0x00: Unallocated, 0xE5: Deleted, Anything Else: First Character of File Name
 
-    if [ "$FIRSTCHAR" == "00" ]; then # Unallocated
-        :
-    else
-        echo -e "\n-> Root Directory Entry $i"
-        if [ "$FIRSTCHAR" == "E5" ]; then # Deleted
-            echo -e "\t Deleted File"
-        fi
-
-        # 0x01: read only, 0x02: hidden, 0x04: system, 0x08: volume label, 0x10: directory, 0x20: archive, 0x0F: long file name
-        FILEATTR=$(dd if=root-dir-entry.dd skip=11 bs=1 count=1 status=none | xxd -p -u)
-        echo -e "\tFile Attribute: $FILEATTR"
-
-        if [ "$FILEATTR" == "0F" ]; then # Long file name
-            # Sequence Number
-            SEQNUM=$(dd if=root-dir-entry.dd bs=1 skip=0 count=1 status=none)
-            # First 5 UCS-2 Characters | 0x1 = 1 -> 10 bytes
-            UCS1=$(dd if=root-dir-entry.dd bs=1 skip=1 count=10 status=none | tr -d "\000")
-            # Next 6 UCS-2 Characters | 0xE = 14 -> 12 bytes
-            UCS2=$(dd if=root-dir-entry.dd bs=1 skip=14 count=12 status=none | tr -d "\000")
-            # Next 2 UCS-2 Characters | 0x1B = 27 -> 4 bytes
-            UCS3=$(dd if=root-dir-entry.dd bs=1 skip=27 count=4 status=none | tr -d "\000")
-            LFN="$UCS1$UCS2$UCS3"
-            LFN=$(echo "$LFN" | strings) # Filter non-ASCII characters
-            echo -e "\tSequence Number: $SEQNUM"
-            echo -e "\tLong File Name: $LFN"
-        elif [ "$FILEATTR" == "10" ]; then # Directory
-            DIRNAME=$(dd if=root-dir-entry.dd skip=0 bs=1 count=11 status=none)
-            FIRSTCLUSTER=$(dd if=root-dir-entry.dd skip=26 bs=1 count=2 status=none | xxd -p -u | le2be | hex2deci)
-            echo -e "\tDirectory Name: $DIRNAME"
-            echo -e "\tFirst Cluster: $FIRSTCLUSTER"
+        if [ "$FIRSTCHAR" == "00" ]; then # Unallocated
+            :
         else
-            FILENAME=$(dd if=root-dir-entry.dd skip=0 bs=1 count=11 status=none)
-            FILESIZE=$(dd if=root-dir-entry.dd skip=28 bs=1 count=4 status=none | xxd -p -u | le2be | hex2deci)
-            FIRSTCLUSTER=$(dd if=root-dir-entry.dd skip=26 bs=1 count=2 status=none | xxd -p -u | le2be | hex2deci)
-            echo -e "\tFile Name: $FILENAME"
-            echo -e "\tFile Size: $FILESIZE"
-            echo -e "\tFirst Cluster: $FIRSTCLUSTER"
-        fi
-    fi
+            echo -e "\n-> Directory Entry $i"
+            if [ "$FIRSTCHAR" == "E5" ]; then # Deleted
+                echo -e "\t Deleted File"
+            fi
 
-done
+            # 0x01: read only, 0x02: hidden, 0x04: system, 0x08: volume label, 0x10: directory, 0x20: archive, 0x0F: long file name
+            FILEATTR=$(dd if=dir-entry.dd skip=11 bs=1 count=1 status=none | xxd -p -u)
+            echo -e "\tFile Attribute: $FILEATTR"
+
+            if [ "$FILEATTR" == "0F" ]; then # Long file name
+                # Sequence Number
+                SEQNUM=$(dd if=dir-entry.dd bs=1 skip=0 count=1 status=none)
+                # First 5 UCS-2 Characters | 0x1 = 1 -> 10 bytes
+                UCS1=$(dd if=dir-entry.dd bs=1 skip=1 count=10 status=none | tr -d "\000")
+                # Next 6 UCS-2 Characters | 0xE = 14 -> 12 bytes
+                UCS2=$(dd if=dir-entry.dd bs=1 skip=14 count=12 status=none | tr -d "\000")
+                # Next 2 UCS-2 Characters | 0x1B = 27 -> 4 bytes
+                UCS3=$(dd if=dir-entry.dd bs=1 skip=27 count=4 status=none | tr -d "\000")
+                LFN="$UCS1$UCS2$UCS3"
+                LFN=$(echo "$LFN" | strings) # Filter non-ASCII characters
+                echo -e "\tSequence Number: $SEQNUM"
+                echo -e "\tLong File Name: $LFN"
+            elif [ "$FILEATTR" == "10" ]; then # Directory
+                DIRNAME=$(dd if=dir-entry.dd skip=0 bs=1 count=11 status=none)
+                FIRSTCLUSTER=$(dd if=dir-entry.dd skip=26 bs=1 count=2 status=none | xxd -p -u | le2be | hex2deci)
+                echo -e "\tDirectory Name: $DIRNAME"
+                echo -e "\tFirst Cluster: $FIRSTCLUSTER"
+            else
+                FILENAME=$(dd if=dir-entry.dd skip=0 bs=1 count=11 status=none)
+                FILESIZE=$(dd if=dir-entry.dd skip=28 bs=1 count=4 status=none | xxd -p -u | le2be | hex2deci)
+                FIRSTCLUSTER=$(dd if=dir-entry.dd skip=26 bs=1 count=2 status=none | xxd -p -u | le2be | hex2deci)
+                echo -e "\tFile Name: $FILENAME"
+                echo -e "\tFile Size: $FILESIZE"
+                echo -e "\tFirst Cluster: $FIRSTCLUSTER"
+            fi
+        fi
+    done
+}
+
+echo "Looping Through Root Directory..."
+loop_dir_entries "root-dir.dd" "$ROOTDIRENTRIES"
 
 FIRSTCLUSTER=3
 FILESIZE=104 # bytes
