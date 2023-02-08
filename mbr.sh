@@ -101,19 +101,19 @@ echo -e "\tSize: $P4SIZE sectors"
 # https://www.reddit.com/r/computerforensics/comments/9tbz53/does_master_boot_record_contain_the_sector_size/
 
 # echo "Extracting Partition 1..." # P1LBA -> (P1LBA + P1SIZE) sectors
-# dd if=img.dd of=p1.dd bs=512 skip=$P1LBA count=$P1SIZE status=none
+# dd if=mbr.dd of=p1.dd bs=512 skip=$P1LBA count=$P1SIZE status=none
 # md5sum p1.dd
 
 # echo "Extracting Partition 2..." # P2LBA -> (P2LBA + P2SIZE) sectors
-# dd if=img.dd of=p2.dd bs=512 skip=$P2LBA count=$P2SIZE status=none
+# dd if=mbr.dd of=p2.dd bs=512 skip=$P2LBA count=$P2SIZE status=none
 # md5sum p2.dd
 
 # echo "Extracting Partition 3..." # P3LBA -> (P3LBA + P3SIZE) sectors
-# dd if=img.dd of=p3.dd bs=512 skip=$P3LBA count=$P3SIZE status=none
+# dd if=mbr.dd of=p3.dd bs=512 skip=$P3LBA count=$P3SIZE status=none
 # md5sum p3.dd
 
 # echo "Extracting Partition 4..." # P4LBA -> (P4LBA + P4SIZE) sectors
-# dd if=img.dd of=p4.dd bs=512 skip=$P4LBA count=$P4SIZE status=none
+# dd if=mbr.dd of=p4.dd bs=512 skip=$P4LBA count=$P4SIZE status=none
 # md5sum p4.dd
 
 # http://www.osdever.net/documents/partitiontypes.php
