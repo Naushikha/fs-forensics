@@ -5,7 +5,7 @@ cd ./images/FAT16
 rm -rf working
 mkdir -p working
 
-cp asanka.dd working/fat16.dd
+cp adams.dd working/fat16.dd
 
 cd working
 
@@ -73,7 +73,8 @@ echo "FAT16: Extracting Root Directory"
 dd if=fat16.dd of=root-dir.dd bs=$SECTORSIZE skip=$ROOTDIROFFSET count=$ROOTDIRSIZE status=none
 
 echo "FAT16: Extracting FAT Table" # Usually 2 FATs for redundancy
-dd if=fat16.dd of=fat-table.dd bs=$SECTORSIZE skip=$RESERVEDSECTORS count=$FATSECTORS status=none
+let "FATOFFSET = $RESERVEDSECTORS + $FATSECTORS * 0" # 0 for FAT-1, 1 for FAT-2
+dd if=fat16.dd of=fat-table.dd bs=$SECTORSIZE skip=$FATOFFSET count=$FATSECTORS status=none
 
 echo "Calculation: Sector Offset to Data Area"
 let "DATAOFFSET = $ROOTDIROFFSET + $ROOTDIRSIZE"
@@ -189,13 +190,41 @@ function extract_file() { # File Name, First Cluster, File Size
     done
 }
 
-extract_file "test.txt" "3" "104"
+function extract_deleted_file() { # File Name, First Cluster, File Size
+    FILENAME=$1
+    FIRSTCLUSTER=$2
+    FILESIZE=$3
 
-extract_file "folder" "4" "0" # Extracting a directory
+    # Data area starts numbering from 2
+    let "ACTUALCLUSTER = $FIRSTCLUSTER - 1"
+    let "SKIPCLUSTERS = $ACTUALCLUSTER - 1"
 
-loop_dir_entries "folder.dd" "0"
+    let "QUOTIENT = $FILESIZE / $CLUSTERSIZE"
+    let "REMAINDER = $FILESIZE % $CLUSTERSIZE"
+    if [ "$REMAINDER" != "0" ]; then
+        let "QUOTIENT = $QUOTIENT + 1"
+    fi
 
-extract_file "ASCII_code_chart.png" "5" "37769"
+    dd if=data-area.dd of=$FILENAME.dd bs=$CLUSTERSIZE skip=$SKIPCLUSTERS count=$QUOTIENT status=none
+    # Truncate slack
+    dd if=$FILENAME.dd of=$FILENAME bs=1 count=$FILESIZE status=none
+    echo "Extracted deleted '$FILENAME'"
+}
+
+# For asanka.dd
+# extract_file "test.txt" "3" "104"
+# extract_file "Designs.doc" "1837" "2585088"
+# extract_file "folder" "4" "0" # Extracting a directory
+# loop_dir_entries "folder.dd" "0"
+# extract_file "ASCII_code_chart.png" "5" "37769"
+# extract_file "deleted.txt" "0" "0"
+
+# For adams.dd
+extract_file "images" "3" "0" # Directory
+loop_dir_entries "images.dd" "0"
+extract_file "Designs.doc" "1837" "2585088"
+extract_deleted_file "IMG_3027.jpg" "4" "1876108"
+
 
 # https://www.win.tue.nl/~aeb/linux/fs/fat/fat-1.html
 # https://people.cs.umass.edu/~liberato/courses/2018-spring-compsci365+590f/lecture-notes/11-fats-and-directory-entries/
