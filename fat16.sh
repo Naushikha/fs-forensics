@@ -12,6 +12,9 @@ cp adams.dd working/fat16.dd
 
 cd working
 
+# -------------------------------------------------------------------
+echo
+
 echo "FAT16: Extracting Boot Sector..." # 512 Bytes
 dd if=fat16.dd of=boot-sector.dd bs=1 count=512 status=none
 
