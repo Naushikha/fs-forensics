@@ -2,14 +2,14 @@
 
 # FAT16 Functions: isolated to make main script cleaner
 
-function loop_dir_entries() { # Directory Image, Directory Enties (Num)
+function list_dir_entries() { # Directory Image, Directory Enties (Num)
     DIRIMG=$1
     DIRENTRIES=$2
     if [ "$DIRENTRIES" == "0" ]; then # For convenience, calculate from DD image
         IMGSIZE="$(wc -c <"$DIRIMG")"
         let "DIRENTRIES = $IMGSIZE / 32"
     fi
-    echo "Looping through directory image '$DIRIMG'..."
+    echo "Listing directory entries in image '$DIRIMG'..."
     # Loop through root directory entries
     for ((i = 0; i < DIRENTRIES; i++)); do # https://stackoverflow.com/a/171041
 

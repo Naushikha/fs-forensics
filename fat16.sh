@@ -85,19 +85,19 @@ dd if=fat16.dd of=data-area.dd bs=$SECTORSIZE skip=$DATAOFFSET status=none
 # -------------------------------------------------------------------
 echo
 
-loop_dir_entries "root-dir.dd" "$ROOTDIRENTRIES"
+list_dir_entries "root-dir.dd" "$ROOTDIRENTRIES"
 
 # For asanka.dd
 # extract_file "test.txt" "3" "104"
 # extract_file "Designs.doc" "1837" "2585088"
 # extract_file "folder" "4" "0" # Extracting a directory
-# loop_dir_entries "folder.dd" "0"
+# list_dir_entries "folder.dd" "0"
 # extract_file "ASCII_code_chart.png" "5" "37769"
 # extract_file "deleted.txt" "0" "0"
 
 # For adams.dd
 extract_file "images" "3" "0" # Directory
-loop_dir_entries "images.dd" "0"
+list_dir_entries "images.dd" "0"
 extract_file "Designs.doc" "1837" "2585088"
 extract_deleted_file "IMG_3027.jpg" "4" "1876108"
 
