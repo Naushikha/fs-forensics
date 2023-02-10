@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# NTFS Utilities: isolated to make main script cleaner
+
 function extract_mft_entry() { # MFT Entry ID (0-)
     MFTENTRY=$1
 

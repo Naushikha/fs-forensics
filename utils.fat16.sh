@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FAT16 Functions: isolated to make main script cleaner
+# FAT16 Utilities: isolated to make main script cleaner
 
 function list_dir_entries() { # Directory Image, Directory Enties (Num)
     DIRIMG=$1

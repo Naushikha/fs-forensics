@@ -1,7 +1,7 @@
 #!/bin/bash
 
 source utils.sh # import util functions
-source fat16.fns.sh # import FAT16 functions
+source utils.fat16.sh # import FAT16 utility functions
 
 cd ./images/FAT16
 

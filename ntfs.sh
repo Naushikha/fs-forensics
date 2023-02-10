@@ -1,7 +1,7 @@
 #!/bin/bash
 
 source utils.sh    # import util functions
-source ntfs.fns.sh # import NTFS functions
+source utils.ntfs.sh # import NTFS utility functions
 
 cd ./images/NTFS
 
