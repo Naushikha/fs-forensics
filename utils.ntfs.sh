@@ -33,6 +33,26 @@ function get_attribute_type() { # Attribute Type Identifier
     echo "$TYPESTR"
 }
 
+function get_resident_attribute() { # Attribute Type Identifier
+    ATTRID=$1
+    echo -e "\t-> Resident Attribute"
+    if [ "$ATTRID" == "128" ]; then # Data Attribute
+        dd if=resident-attr-content.dd of=data.dd bs=1 status=none
+        ATTRCONTENT=$(dd if=data.dd bs=1 status=none | tr -d "\000")
+        echo -e "\t\tData Content (data.dd): $ATTRCONTENT"
+    fi
+    if [ "$ATTRID" == "48" ]; then # File Name Attribute
+        # File name length in unicode characters: 0x40 = 64 -> 1 byte
+        UNILENGTH=$(dd if=resident-attr-content.dd bs=1 skip=64 count=1 status=none | xxd -p -u | le2be | hex2deci)
+        echo -e "\t\tUnicode Length: $UNILENGTH characters"
+        # Unicode is 2 bytes
+        let "BYTELENGTH = $UNILENGTH * 2"
+        # File name: 0x42 = 66 -> BYTELENGTH
+        FILENAME=$(dd if=resident-attr-content.dd bs=1 skip=66 count=$BYTELENGTH status=none | tr -d "\000")
+        echo -e "\t\tUnicode Filename: $FILENAME"
+    fi
+}
+
 function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
     ATTROFFSET=$1
 
@@ -56,6 +76,20 @@ function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
     # Non-Resident Flag: 0x08 = 8 -> 1 byte
     NONRESFLAG=$(dd if=mft-entry-attr.dd bs=1 skip=8 count=1 status=none | xxd -u -p | le2be | hex2deci)
     echo -e "\tNon-Resident Flag: $NONRESFLAG"
+
+    # Resident attributes
+    if [ "$NONRESFLAG" == "0" ]; then
+        # Size of content: 0x10 = 16 -> 4 bytes
+        STREAMSIZE=$(dd if=mft-entry-attr.dd bs=1 skip=16 count=4 status=none | xxd -u -p | le2be | hex2deci)
+        echo -e "\t[Resident] Size of Content: $STREAMSIZE"
+        # Offset to content: 0x14 = 20 -> 2 bytes
+        STREAMOFFSET=$(dd if=mft-entry-attr.dd bs=1 skip=20 count=2 status=none | xxd -u -p | le2be | hex2deci)
+        echo -e "\t[Resident] Offset to Content: $STREAMOFFSET"
+        # Extract resident atrribute content
+        dd if=mft-entry-attr.dd of=resident-attr-content.dd bs=1 skip=$STREAMOFFSET count=$STREAMSIZE status=none
+
+        get_resident_attribute "$ATTRTYPE"
+    fi
 
     let "NEXTATTROFFSET = $ATTROFFSET + $ATTRSIZE"
     echo -e "\tNext Attribute Offset: $NEXTATTROFFSET"
