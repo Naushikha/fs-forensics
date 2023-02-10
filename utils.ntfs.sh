@@ -23,12 +23,13 @@ function extract_mft_entry() { # MFT Entry ID (0-)
 
 function get_attribute_type() { # Attribute Type Identifier
     ATTRID=$1
-    if [ "$ATTRID" == "128" ]; then # Data
-        TYPESTR="Data"
-    fi
-    if [ "$ATTRID" == "48" ]; then # Data
-        TYPESTR="File Name"
-    fi  
+    TYPESTR="-"
+    # End Marker of Attributes: FFFF FFFF = 4294967295
+    if [ "$ATTRID" == "4294967295" ]; then TYPESTR="End Marker of Attributes"; fi
+    if [ "$ATTRID" == "16" ]; then TYPESTR="Standard Information"; fi
+    if [ "$ATTRID" == "48" ]; then TYPESTR="File Name"; fi
+    if [ "$ATTRID" == "80" ]; then TYPESTR="Security Descriptor"; fi
+    if [ "$ATTRID" == "128" ]; then TYPESTR="Data"; fi
     echo "$TYPESTR"
 }
 
@@ -41,7 +42,8 @@ function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
     # Attribute Type: 0x00 = 0 -> 4 bytes
     # End Marker of Attributes: FFFF FFFF = 4294967295
     ATTRTYPE=$(dd if=mft-entry.dd bs=1 skip=$ATTROFFSET count=4 status=none | xxd -u -p | le2be | hex2deci)
-    echo -e "\tType: $ATTRTYPE"
+    ATTRTYPESTR=$(get_attribute_type "$ATTRTYPE")
+    echo -e "\tType: $ATTRTYPE ($ATTRTYPESTR)"
 
     # Attribute Size: 0x04 = 4 -> 4 bytes
     let "ATTRSIZEOFFSET = $ATTROFFSET + 4"
