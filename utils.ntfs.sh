@@ -33,7 +33,7 @@ function get_attribute_type() { # Attribute Type Identifier
     echo "$TYPESTR"
 }
 
-function get_resident_attribute() { # Attribute Type Identifier
+function process_resident_attribute_content() { # Attribute Type Identifier
     ATTRID=$1
     echo -e "\t-> Resident Attribute"
     if [ "$ATTRID" == "128" ]; then # Data Attribute
@@ -51,6 +51,19 @@ function get_resident_attribute() { # Attribute Type Identifier
         FILENAME=$(dd if=resident-attr-content.dd bs=1 skip=66 count=$BYTELENGTH status=none | tr -d "\000")
         echo -e "\t\tUnicode Filename: $FILENAME"
     fi
+}
+
+function process_non_resident_attribute() {
+    echo -e "\t-> Non-Resident Attribute"
+    # 16 23 Starting Virtual Cluster Number (VCN) of the runlist
+    # 24 31 Ending VCN of the runlist
+    # 32 33 Offset to the runlist
+    # 34 35 Compression unit size
+    # 36 39 Unused
+    # 40 47 Allocated size of attribute content
+    # 48 55 Actual size of attribute content
+    # 56 63 Initialized size of attribute content
+    STREAMOFFSET=$(dd if=mft-entry-attr.dd bs=1 skip=20 count=2 status=none | xxd -u -p | le2be | hex2deci)
 }
 
 function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
@@ -77,6 +90,10 @@ function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
     NONRESFLAG=$(dd if=mft-entry-attr.dd bs=1 skip=8 count=1 status=none | xxd -u -p | le2be | hex2deci)
     echo -e "\tNon-Resident Flag: $NONRESFLAG"
 
+    # Non resident attributes
+    if [ "$NONRESFLAG" == "1" ]; then
+        process_non_resident_attribute
+    fi
     # Resident attributes
     if [ "$NONRESFLAG" == "0" ]; then
         # Size of content: 0x10 = 16 -> 4 bytes
@@ -88,7 +105,7 @@ function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
         # Extract resident atrribute content
         dd if=mft-entry-attr.dd of=resident-attr-content.dd bs=1 skip=$STREAMOFFSET count=$STREAMSIZE status=none
 
-        get_resident_attribute "$ATTRTYPE"
+        process_resident_attribute_content "$ATTRTYPE"
     fi
 
     let "NEXTATTROFFSET = $ATTROFFSET + $ATTRSIZE"
