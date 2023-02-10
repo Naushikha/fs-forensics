@@ -94,3 +94,17 @@ function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
     let "NEXTATTROFFSET = $ATTROFFSET + $ATTRSIZE"
     echo -e "\tNext Attribute Offset: $NEXTATTROFFSET"
 }
+
+function loop_mft_entry_attributes() { # Offset to first attribute
+    OFFSETTOFIRST=$1
+    extract_mft_entry_attribute "$OFFSETTOFIRST"
+    while [ "$ATTRTYPE" != "4294967295" ]; do
+        extract_mft_entry_attribute "$NEXTATTROFFSET"
+    done
+}
+
+function list_mft_entry() { # Offset to first attribute
+    MFTENTRY=$1
+    extract_mft_entry "$MFTENTRY"
+    loop_mft_entry_attributes "$ATTR1OFFSET"
+}

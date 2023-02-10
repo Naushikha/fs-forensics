@@ -41,12 +41,5 @@ let "MFTOFFSET = $CLUSTERSECTORS * $SECTORSIZE * $MFTCLUSTER"
 echo "[Calc] Offset to MFT: $MFTOFFSET bytes"
 
 # MFT Entry is 1024 bytes
-# Entry 0:
-extract_mft_entry "64"
-
-extract_mft_entry_attribute "56"
-extract_mft_entry_attribute "128"
-extract_mft_entry_attribute "240"
-extract_mft_entry_attribute "344"
-# extract_mft_entry_attribute "400"
-
+list_mft_entry "64"
+list_mft_entry "65"
