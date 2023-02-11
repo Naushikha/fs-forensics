@@ -41,5 +41,14 @@ let "MFTOFFSET = $CLUSTERSECTORS * $SECTORSIZE * $MFTCLUSTER"
 echo "[Calc] Offset to MFT: $MFTOFFSET bytes"
 
 # MFT Entry is 1024 bytes
+
 list_mft_entry "64"
 list_mft_entry "65"
+
+# Manual listing possible,
+# extract_mft_entry "65"
+# extract_mft_entry_attribute "352"
+
+# Extract non-resident file
+dd if=ntfs.dd of=file.dd bs=4096 skip=8707 count=3 status=none
+dd if=file.dd of=pat.gif bs=1 count=9583 status=none

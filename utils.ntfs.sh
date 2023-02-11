@@ -55,15 +55,39 @@ function process_resident_attribute_content() { # Attribute Type Identifier
 
 function process_non_resident_attribute() {
     echo -e "\t-> Non-Resident Attribute"
-    # 16 23 Starting Virtual Cluster Number (VCN) of the runlist
-    # 24 31 Ending VCN of the runlist
-    # 32 33 Offset to the runlist
-    # 34 35 Compression unit size
-    # 36 39 Unused
-    # 40 47 Allocated size of attribute content
-    # 48 55 Actual size of attribute content
-    # 56 63 Initialized size of attribute content
-    STREAMOFFSET=$(dd if=mft-entry-attr.dd bs=1 skip=20 count=2 status=none | xxd -u -p | le2be | hex2deci)
+    # Starting Virtual Cluster Number (VCN) of the runlist: 0x10 = 16 -> 8 bytes
+    VCNSTART=$(dd if=mft-entry-attr.dd bs=1 skip=16 count=8 status=none | xxd -u -p | le2be | hex2deci)
+    echo -e "\t\tStarting VCN: $VCNSTART"
+    # Ending VCN of the runlist: 0x18 = 24 -> 8 bytes
+    VCNEND=$(dd if=mft-entry-attr.dd bs=1 skip=24 count=8 status=none | xxd -u -p | le2be | hex2deci)
+    echo -e "\t\tEnding VCN: $VCNEND"
+    # Offset to the runlist: 0x20 = 32 -> 2 bytes
+    RUNLISTOFFSET=$(dd if=mft-entry-attr.dd bs=1 skip=32 count=2 status=none | xxd -u -p | le2be | hex2deci)
+    echo -e "\t\tRunlist Offset: $RUNLISTOFFSET"
+    # Compression unit size: 0x22 = 34 -> 2 bytes
+    COMPUNIT=$(dd if=mft-entry-attr.dd bs=1 skip=34 count=2 status=none | xxd -u -p | le2be | hex2deci)
+    echo -e "\t\tCompression Unit Size: $COMPUNIT"
+    # Actual size of attribute content: 0x30 = 48 -> 8 bytes
+    ACTSIZE=$(dd if=mft-entry-attr.dd bs=1 skip=48 count=8 status=none | xxd -u -p | le2be | hex2deci)
+    echo -e "\t\tActual Size of Attr. Content: $ACTSIZE"
+    # ------------------------------------------------------
+    # Runlist Byte
+    RUNBYTE=$(dd if=mft-entry-attr.dd bs=1 skip=$RUNLISTOFFSET count=1 status=none | xxd -u -p | hex2bin | padbin)
+    echo -e "\t\tRunlist Byte: $RUNBYTE"
+    # Run offset size: first 4 bytes in runlist byte
+    RUNOFFSETSIZE=$(echo "$RUNBYTE" | cut -c1-4 | bin2deci)
+    echo -e "\t\tRun Offset Size: $RUNOFFSETSIZE"
+    # Run length size: last 4 bytes in runlist byte
+    RUNLENGTHSIZE=$(echo "$RUNBYTE" | cut -c5-8 | bin2deci)
+    echo -e "\t\tRun Length Size: $RUNLENGTHSIZE"
+    # Run length: after runlist byte -> RUNLENGTHSIZE
+    let "RUNLENGTHOFFSET = $RUNLISTOFFSET + 1"
+    RUNLENGTH=$(dd if=mft-entry-attr.dd bs=1 skip=$RUNLENGTHOFFSET count=$RUNLENGTHSIZE status=none | xxd -u -p | le2be | hex2deci)
+    echo -e "\t\tRun Length: $RUNLENGTH"
+    # Run offset: after run length -> RUNOFFSETSIZE
+    let "RUNOFFSETOFFSET = $RUNLENGTHOFFSET + $RUNLENGTHSIZE"
+    RUNOFFSET=$(dd if=mft-entry-attr.dd bs=1 skip=$RUNOFFSETOFFSET count=$RUNOFFSETSIZE status=none | xxd -u -p | le2be | hex2deci)
+    echo -e "\t\tRun Offset: $RUNOFFSET"
 }
 
 function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
