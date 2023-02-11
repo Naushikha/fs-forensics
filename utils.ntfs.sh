@@ -8,6 +8,8 @@ function extract_mft_entry() { # MFT Entry ID (0-)
     echo
     echo "NTFS: Extracting MFT Entry $MFTENTRY..."
 
+    # MFT Entry is 1024 bytes
+
     # Offset to MFT in 1KB blocks (MFT entry size)
     let "MFTOFFSET1KB = $MFTOFFSET / 1024 + $MFTENTRY"
 
@@ -42,6 +44,9 @@ function process_resident_attribute_content() { # Attribute Type Identifier
         echo -e "\t\tData Content (data.dd): $ATTRCONTENT"
     fi
     if [ "$ATTRID" == "48" ]; then # File Name Attribute
+        # File reference of parent directory: 0x00 = 00 -> 6 byte (WITHOUT SEQUENCE)
+        PARDIR=$(dd if=resident-attr-content.dd bs=1 skip=0 count=6 status=none | xxd -p -u | le2be | hex2deci)
+        echo -e "\t\tParent Directory: $PARDIR"
         # File name length in unicode characters: 0x40 = 64 -> 1 byte
         UNILENGTH=$(dd if=resident-attr-content.dd bs=1 skip=64 count=1 status=none | xxd -p -u | le2be | hex2deci)
         echo -e "\t\tUnicode Length: $UNILENGTH characters"
@@ -147,5 +152,23 @@ function loop_mft_entry_attributes() { # Offset to first attribute
 function list_mft_entry() { # Offset to first attribute
     MFTENTRY=$1
     extract_mft_entry "$MFTENTRY"
+    if [ "$ATTR1OFFSET" == "0" ]; then
+        echo "(!) No attributes"
+        return
+    fi
     loop_mft_entry_attributes "$ATTR1OFFSET"
+}
+
+function extract_file() { # Run Offset, Run Length, File Size, File Name
+    RUNOFFSET=$1
+    RUNLENGTH=$2
+    FILESIZE=$3
+    FILENAME=$4
+
+    let "CLUSTERSIZEBYTES = $CLUSTERSECTORS * $SECTORSIZE"
+
+    dd if=ntfs.dd of=file.dd bs=$CLUSTERSIZEBYTES skip=$RUNOFFSET count=$RUNLENGTH status=none
+    # Truncate file
+    dd if=file.dd of=$FILENAME bs=1 count=$FILESIZE status=none
+    echo "Extracted '$FILENAME'"
 }

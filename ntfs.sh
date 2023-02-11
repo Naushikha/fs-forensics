@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source utils.sh    # import util functions
+source utils.sh      # import util functions
 source utils.ntfs.sh # import NTFS utility functions
 
 cd ./images/NTFS
@@ -40,15 +40,20 @@ echo -e "\tStarting Cluster for MFT: $MFTCLUSTER"
 let "MFTOFFSET = $CLUSTERSECTORS * $SECTORSIZE * $MFTCLUSTER"
 echo "[Calc] Offset to MFT: $MFTOFFSET bytes"
 
-# MFT Entry is 1024 bytes
+# -------------------------------------------------------------------
+echo
+
+# Brute force all MFT entries
+# for i in {10..75}; do
+#     list_mft_entry "$i"
+# done
 
 list_mft_entry "64"
 list_mft_entry "65"
 
-# Manual listing possible,
+# Manual listing,
 # extract_mft_entry "65"
 # extract_mft_entry_attribute "352"
 
 # Extract non-resident file
-dd if=ntfs.dd of=file.dd bs=4096 skip=8707 count=3 status=none
-dd if=file.dd of=pat.gif bs=1 count=9583 status=none
+extract_file "8707" "3" "9583" "pat.gif"
