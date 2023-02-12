@@ -123,3 +123,50 @@ function extract_deleted_file() { # File Name, First Cluster, File Size
     dd if=$FILENAME.dd of=$FILENAME bs=1 count=$FILESIZE status=none
     echo "Extracted deleted '$FILENAME'"
 }
+
+function walk_cluster() {
+    CLUSTER=$1
+    # 0x0000: Unallocated, 0xFFF7: Bad sector, 0xFFF8: EOF
+    if [ "$CLUSTER" == "0" ]; then
+        NEXTCLUSTER=0
+        return
+    fi
+    if [ "$CLUSTER" == "65527" ]; then
+        NEXTCLUSTER=0
+        return
+    fi
+    NEXTCLUSTER=$(dd if=fat-table.dd bs=2 skip=$CLUSTER count=1 status=none | xxd -p -u | le2be | hex2deci)
+}
+
+function list_cluster_chains() {
+    VISITEDCLUSTERS=()
+    # A cluster number is 2 bytes in FAT
+    let "ALLCLUSTERS = ($FATSECTORS * $SECTORSIZE) / 2"
+    echo "Max clusters possible in FAT: $ALLCLUSTERS"
+    for ((CLUSTER = 2; CLUSTER < ALLCLUSTERS; CLUSTER++)); do      # 0, 1 not needed
+        if [[ " ${VISITEDCLUSTERS[*]} " =~ " ${CLUSTER} " ]]; then # https://stackoverflow.com/a/15394738
+            continue
+        fi
+        CURRCLUSTER="$CLUSTER"
+        PRINTCHAIN=1 # Print cluster chain
+        while true; do
+            NEXTCLUSTER=$(dd if=fat-table.dd bs=2 skip=$CURRCLUSTER count=1 status=none | xxd -p -u | le2be | hex2deci)
+            if [ "$NEXTCLUSTER" == "0" ]; then
+                break
+            fi
+            if [ "$NEXTCLUSTER" == "65527" ]; then
+                break
+            fi
+            if [ "$PRINTCHAIN" == "1" ]; then
+                echo -ne "\nCluster Chain: "
+                PRINTCHAIN=0
+            fi
+            echo -n "$CURRCLUSTER "
+            VISITEDCLUSTERS+=("$CURRCLUSTER")
+            CURRCLUSTER="$NEXTCLUSTER"
+            if [ "$NEXTCLUSTER" -ge "65528" ]; then
+                break
+            fi
+        done
+    done
+}

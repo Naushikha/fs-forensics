@@ -8,7 +8,7 @@ cd ./images/FAT16
 rm -rf working
 mkdir -p working
 
-cp adams.dd working/fat16.dd
+cp asanka.dd working/fat16.dd
 
 cd working
 
@@ -92,7 +92,6 @@ list_dir_entries "root-dir.dd" "$ROOTDIRENTRIES"
 
 # For asanka.dd
 # extract_file "test.txt" "3" "104"
-# extract_file "Designs.doc" "1837" "2585088"
 # extract_file "folder" "4" "0" # Extracting a directory
 # list_dir_entries "folder.dd" "0"
 # extract_file "ASCII_code_chart.png" "5" "37769"
@@ -104,6 +103,8 @@ list_dir_entries "images.dd" "0"
 extract_file "Designs.doc" "1837" "2585088"
 extract_deleted_file "IMG_3027.jpg" "4" "1876108"
 
+# Find out hidden clusters
+# list_cluster_chains
 
 # ** Only Files, Directories, and LFNs are considered
 # https://www.win.tue.nl/~aeb/linux/fs/fat/fat-1.html
