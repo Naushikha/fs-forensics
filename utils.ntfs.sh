@@ -21,6 +21,14 @@ function extract_mft_entry() { # MFT Entry ID (0-)
     ATTR1OFFSET=$(dd if=mft-entry.dd bs=1 skip=20 count=2 status=none | xxd -u -p | le2be | hex2deci)
     echo -e "\tOffset to First Attribute: $ATTR1OFFSET bytes"
 
+    # Flags : 0x16 = 22 -> 2 bytes
+    # 0x00: entry not in use, 0x01: entry is in use, 0x02: entry is for a directory.
+    FLAGS=$(dd if=mft-entry.dd bs=1 skip=22 count=2 status=none | xxd -u -p | le2be | hex2deci)
+    if [ "$FLAGS" == "0" ]; then FLAGSTR="NOT IN USE"; fi
+    if [ "$FLAGS" == "1" ]; then FLAGSTR="IN USE > FILE"; fi
+    if [ "$FLAGS" == "2" ]; then FLAGSTR="IN USE > DIRECTORY"; fi
+    echo -e "\tFlags: $FLAGSTR"
+
 }
 
 function get_attribute_type() { # Attribute Type Identifier
@@ -99,7 +107,7 @@ function extract_mft_entry_attribute() { # MFT Entry Offset (Bytes)
     ATTROFFSET=$1
 
     echo
-    echo "-> MTF Entry Attribute @ Offset $ATTROFFSET Bytes"
+    echo "-> Attribute @ Offset $ATTROFFSET Bytes"
 
     # Attribute Type: 0x00 = 0 -> 4 bytes
     # End Marker of Attributes: FFFF FFFF = 4294967295
