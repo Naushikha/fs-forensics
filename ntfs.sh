@@ -56,4 +56,4 @@ list_mft_entry "65"
 # extract_mft_entry_attribute "352"
 
 # Extract non-resident file
-extract_file "8707" "3" "9583" "pat.gif"
+extract_file "pat.gif" "8707" "3" "9583"

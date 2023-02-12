@@ -124,25 +124,11 @@ function extract_deleted_file() { # File Name, First Cluster, File Size
     echo "Extracted deleted '$FILENAME'"
 }
 
-function walk_cluster() {
-    CLUSTER=$1
-    # 0x0000: Unallocated, 0xFFF7: Bad sector, 0xFFF8: EOF
-    if [ "$CLUSTER" == "0" ]; then
-        NEXTCLUSTER=0
-        return
-    fi
-    if [ "$CLUSTER" == "65527" ]; then
-        NEXTCLUSTER=0
-        return
-    fi
-    NEXTCLUSTER=$(dd if=fat-table.dd bs=2 skip=$CLUSTER count=1 status=none | xxd -p -u | le2be | hex2deci)
-}
-
 function list_cluster_chains() {
     VISITEDCLUSTERS=()
     # A cluster number is 2 bytes in FAT
+    # Calculate max clusters possible in FAT
     let "ALLCLUSTERS = ($FATSECTORS * $SECTORSIZE) / 2"
-    echo "Max clusters possible in FAT: $ALLCLUSTERS"
     for ((CLUSTER = 2; CLUSTER < ALLCLUSTERS; CLUSTER++)); do      # 0, 1 not needed
         if [[ " ${VISITEDCLUSTERS[*]} " =~ " ${CLUSTER} " ]]; then # https://stackoverflow.com/a/15394738
             continue

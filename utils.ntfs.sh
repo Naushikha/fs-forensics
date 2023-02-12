@@ -167,11 +167,11 @@ function list_mft_entry() { # Offset to first attribute
     loop_mft_entry_attributes "$ATTR1OFFSET"
 }
 
-function extract_file() { # Run Offset, Run Length, File Size, File Name
-    RUNOFFSET=$1
-    RUNLENGTH=$2
-    FILESIZE=$3
-    FILENAME=$4
+function extract_file() { # File Name, Run Offset, Run Length, File Size
+    FILENAME=$1
+    RUNOFFSET=$2
+    RUNLENGTH=$3
+    FILESIZE=$4
 
     let "CLUSTERSIZEBYTES = $CLUSTERSECTORS * $SECTORSIZE"
 
