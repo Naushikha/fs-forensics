@@ -118,6 +118,10 @@ function extract_deleted_file() { # File Name, First Cluster, File Size
         let "QUOTIENT = $QUOTIENT + 1"
     fi
 
+    if [ "$FILESIZE" == "0" ]; then
+        QUOTIENT=1
+    fi
+
     dd if=data-area.dd of=$FILENAME.dd bs=$CLUSTERSIZE skip=$SKIPCLUSTERS count=$QUOTIENT status=none
     # Truncate slack
     dd if=$FILENAME.dd of=$FILENAME bs=1 count=$FILESIZE status=none
